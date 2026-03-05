@@ -23,6 +23,11 @@ func Authenticate(context *gin.Context) {
 		return
 	}
 
+	// Set() allows us to add some values to the gin context value
+	// This is handy b/c we can then access values from outside functions w/o
+	// having to return a variable from this function and calling it elsewhere
+	context.Set("userId", userId)
+
 	// Ensures the next handler request in line will execute correctly
 	context.Next()
 }

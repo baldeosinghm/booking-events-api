@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"example.com/rest-api/models"
-	"example.com/rest-api/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -48,24 +47,9 @@ func getEvent(context *gin.Context) {
 }
 
 func createEvent(context *gin.Context) {
-	// User must be logged in to create an event, so ask for login token.
-	token := context.Request.Header.Get("Authorization")
-
-	if token == "" {
-		context.JSON(http.StatusUnauthorized, gin.H{"message": "Not authorized."})
-		return
-	}
-
-	userId, err := utils.VerifyToken(token)
-
-	if err != nil {
-		context.JSON(http.StatusUnauthorized, gin.H{"message": "Not authorized."})
-		return
-	}
-
 	var event models.Event
 	// Bind user request to the above variable, event
-	err = context.ShouldBindJSON(&event) // func needs a pointer to the object, event
+	err := context.ShouldBindJSON(&event) // func needs a pointer to the object, event
 
 	if err != nil {
 		context.JSON(
@@ -73,7 +57,9 @@ func createEvent(context *gin.Context) {
 		return
 	}
 
-	// Create temporary dummy IDs
+	// Retrieve user Id from gin context; call this specific function
+	// b/c it gives us the correct type for the event struct
+	userId := context.GetInt64("userId")
 	event.UserID = userId
 
 	err = event.Save()
@@ -104,13 +90,21 @@ func updateEvent(context *gin.Context) {
 	}
 
 	// Look up id in db to see if it exists
-	_, err = models.GetEventById(eventID)
+	userId := context.GetInt64("userId")
+	event, err := models.GetEventById(eventID)
 
 	if err != nil {
 		context.JSON(
 			http.StatusInternalServerError,
 			gin.H{"message": "Could not fetch the event."},
 		)
+		return
+	}
+
+	// Check if the user ID attached to the event matches the user ID we
+	// pulled from this login token
+	if event.UserID != userId {
+		context.JSON(http.StatusUnauthorized, gin.H{"message": "Not authorized to update event."})
 		return
 	}
 
@@ -150,6 +144,7 @@ func deleteEvent(context *gin.Context) {
 		return
 	}
 
+	userId := context.GetInt64("userId")
 	// Look up id in db to see if it exists
 	event, err := models.GetEventById(eventID)
 
@@ -158,6 +153,13 @@ func deleteEvent(context *gin.Context) {
 			http.StatusInternalServerError,
 			gin.H{"message": "Could not fetch the event."},
 		)
+		return
+	}
+
+	// Check if the user ID attached to the event matches the user ID we
+	// pulled from this login token
+	if event.UserID != userId {
+		context.JSON(http.StatusUnauthorized, gin.H{"message": "Not authorized to delete event."})
 		return
 	}
 
