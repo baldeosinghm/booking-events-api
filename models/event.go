@@ -14,11 +14,11 @@ type Event struct {
 	Description string    `binding:"required"`
 	Location    string    `binding:"required"`
 	DateTime    time.Time `binding:"required"`
-	UserID      int
+	UserID      int64
 }
 
 // Method to save an event; recall that a method needs add a receiver argument before the function name
-func (e Event) Save() error {
+func (e *Event) Save() error {
 	// Insert into db table, events, the field names you want populated
 	// The question marks allow for a SQL injection, safe way of inserting
 	// values into this query
